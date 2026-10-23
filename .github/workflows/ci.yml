@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Tests on Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20.0.0 is written out in full on purpose. A job named '20' resolves
+        # to the newest release of that line, so a bare major is not a test of
+        # the declared engines floor at all. tools/verify.mjs asserts that the
+        # floor is an exact version and that this matrix never names its major
+        # bare.
+        node-version: ['20.0.0', '22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Run the test suite
+        run: npm test
+      - name: Run the verifier
+        run: npm run verify
+
+  count:
+    name: The test count the README states
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compare the live test count against every figure in the README
+        run: npm run count
+
+  generated:
+    name: The generated catalogue
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Generated with node rather than npm run, because npm writes its own
+      # banner to stdout and a redirect would capture it into the file.
+      - name: Regenerate and compare
+        run: |
+          cp CATALOGUE.md /tmp/catalogue-committed.md
+          node tools/build-catalogue.mjs
+          diff -u /tmp/catalogue-committed.md CATALOGUE.md
+      - name: The verifier agrees in write mode as well as in read mode
+        run: node tools/verify.mjs --write
+
+  engines:
+    name: The engines floor is enforced on install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.0.0'
+      - name: Install with the engines floor enforced
+        run: npm install --engine-strict
+
+  artefacts:
+    name: The artefacts build and the tool runs against one
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Render every example and fixture to a real PDF
+        run: npm run artefacts
+      - name: Audit a corrected document, which has to be clean
+        run: node tools/audit.mjs build/examples/01-untagged-pass.pdf
+      - name: Audit a failing document, which has to report and exit non zero
+        run: |
+          if node tools/audit.mjs build/examples/06-table-without-headers-fail.pdf; then
+            echo "the failing document was reported as clean"
+            exit 1
+          fi
+      - name: A file outside the readable subset is refused rather than reported clean
+        run: |
+          printf 'not a pdf' > /tmp/plain.txt
+          node tools/audit.mjs /tmp/plain.txt && exit 1 || test $? -eq 2
