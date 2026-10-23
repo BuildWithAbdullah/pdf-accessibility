@@ -1,0 +1,28 @@
+{
+  "name": "pdf-accessibility",
+  "version": "1.0.0",
+  "description": "Tagged PDF accessibility: a catalogue of 50 findings, one per reason a check can fire, each proven against a generated failing document and its correction.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "node --test",
+    "verify": "node tools/verify.mjs",
+    "catalogue": "node tools/build-catalogue.mjs",
+    "count": "node tools/count-tests.mjs",
+    "artefacts": "node tools/artefacts.mjs",
+    "audit": "node tools/audit.mjs"
+  },
+  "keywords": [
+    "pdf",
+    "accessibility",
+    "tagged-pdf",
+    "pdf-ua",
+    "wcag",
+    "reading-order",
+    "structure-tree"
+  ]
+}
